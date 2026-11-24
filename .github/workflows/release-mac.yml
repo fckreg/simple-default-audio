@@ -27,8 +27,8 @@ jobs:
       - name: Install npm deps
         run: npm ci
 
-      - name: Install MKVToolNix (mkvpropedit)
-        run: brew install mkvtoolnix
+      - name: Install ffmpeg + MKVToolNix
+        run: brew install ffmpeg mkvtoolnix
 
       - name: Fetch helpers + package
         env:

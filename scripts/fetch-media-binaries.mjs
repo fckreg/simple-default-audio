@@ -35,7 +35,6 @@ const BIN_ROOT = join(ROOT, 'resources', 'bin')
 const MKVTOOLNIX_VERSION = '90.0'
 // Essentials build keeps ffprobe much smaller than full BtbN gpl static (~160MB+).
 const FFMPEG_WIN_URL = 'https://github.com/GyanD/codexffmpeg/releases/download/7.1.1/ffmpeg-7.1.1-essentials_build.zip'
-const FFMPEG_MAC_URL = 'https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip'
 const SEVEN_ZR_URL = 'https://www.7-zip.org/a/7zr.exe'
 
 const TARGETS = {
@@ -135,57 +134,54 @@ async function fetchWin64(outDir) {
   }
 }
 
-async function fetchDarwin(arch, outDir) {
-  const work = join(tmpdir(), `sda-bin-mac-${arch}-${Date.now()}`)
-  ensureDir(work)
-  try {
-    if (process.platform !== 'darwin') {
-      console.warn(`  ! darwin-${arch}: полное скачивание с этой ОС ограничено.`)
-      console.warn('    На macOS выполните: node scripts/fetch-media-binaries.mjs')
-      console.warn('    Либо положите ffprobe и mkvpropedit вручную в', outDir)
-      ensureDir(outDir)
-      return
-    }
-
-    if ((arch === 'arm64' && process.arch !== 'arm64') || (arch === 'x64' && process.arch !== 'x64')) {
-      console.warn(`  ! Пропуск darwin-${arch}: хост arch=${process.arch}. Положите бинарники вручную.`)
-      ensureDir(outDir)
-      return
-    }
-
-    const ffZip = join(work, 'ffprobe.zip')
-    await download(FFMPEG_MAC_URL, ffZip)
-    console.log(`  sha256 ffprobe.zip = ${fileSha256(ffZip)}`)
-    const ffExtract = join(work, 'ff')
-    expandZip(ffZip, ffExtract)
-    const ffprobe = findFileRecursive(ffExtract, 'ffprobe')
-    if (!ffprobe || !existsSync(ffprobe)) throw new Error('ffprobe не найден в архиве evermeet')
-
-    const candidates = [
-      '/Applications/MKVToolNix.app/Contents/MacOS/mkvpropedit',
-      '/opt/homebrew/bin/mkvpropedit',
-      '/usr/local/bin/mkvpropedit',
-    ]
-    let mkv = candidates.find((p) => existsSync(p))
-    if (!mkv) {
-      const which = spawnSync('which', ['mkvpropedit'], { encoding: 'utf8' })
-      if (which.status === 0) mkv = which.stdout.trim()
-    }
-    if (!mkv) {
-      throw new Error(
-        'mkvpropedit не найден. Установите MKVToolNix (brew install mkvtoolnix) и повторите fetch.',
-      )
-    }
-
-    ensureDir(outDir)
-    copyFileSync(ffprobe, join(outDir, 'ffprobe'))
-    copyFileSync(mkv, join(outDir, 'mkvpropedit'))
-    chmodSync(join(outDir, 'ffprobe'), 0o755)
-    chmodSync(join(outDir, 'mkvpropedit'), 0o755)
-    console.log(`  ✓ darwin-${arch} → ${outDir}`)
-  } finally {
-    try { rmSync(work, { recursive: true, force: true }) } catch { /* ignore */ }
+function resolveDarwinTool(name) {
+  const candidates = [
+    `/opt/homebrew/bin/${name}`,
+    `/usr/local/bin/${name}`,
+    `/Applications/MKVToolNix.app/Contents/MacOS/${name}`,
+  ]
+  const hit = candidates.find((p) => existsSync(p))
+  if (hit) return hit
+  const which = spawnSync('which', [name], { encoding: 'utf8' })
+  if (which.status === 0) {
+    const p = which.stdout.trim()
+    if (p && existsSync(p)) return p
   }
+  return null
+}
+
+async function fetchDarwin(arch, outDir) {
+  if (process.platform !== 'darwin') {
+    console.warn(`  ! darwin-${arch}: полное скачивание с этой ОС ограничено.`)
+    console.warn('    На macOS: brew install ffmpeg mkvtoolnix && node scripts/fetch-media-binaries.mjs')
+    console.warn('    Либо положите ffprobe и mkvpropedit вручную в', outDir)
+    ensureDir(outDir)
+    return
+  }
+
+  if ((arch === 'arm64' && process.arch !== 'arm64') || (arch === 'x64' && process.arch !== 'x64')) {
+    console.warn(`  ! Пропуск darwin-${arch}: хост arch=${process.arch}. Положите бинарники вручную.`)
+    ensureDir(outDir)
+    return
+  }
+
+  const ffprobe = resolveDarwinTool('ffprobe')
+  const mkv = resolveDarwinTool('mkvpropedit')
+  if (!ffprobe) {
+    throw new Error('ffprobe не найден. Установите: brew install ffmpeg')
+  }
+  if (!mkv) {
+    throw new Error('mkvpropedit не найден. Установите: brew install mkvtoolnix')
+  }
+
+  ensureDir(outDir)
+  copyFileSync(ffprobe, join(outDir, 'ffprobe'))
+  copyFileSync(mkv, join(outDir, 'mkvpropedit'))
+  chmodSync(join(outDir, 'ffprobe'), 0o755)
+  chmodSync(join(outDir, 'mkvpropedit'), 0o755)
+  console.log(`  ✓ darwin-${arch} → ${outDir}`)
+  console.log(`  source ffprobe: ${ffprobe}`)
+  console.log(`  source mkvpropedit: ${mkv}`)
 }
 
 async function fetchTarget(target) {
