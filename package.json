@@ -1,6 +1,6 @@
 {
-  "name": "trackdefault",
-  "version": "1.0.0",
+  "name": "simple-default-audio",
+  "version": "1.0.1",
   "private": true,
   "description": "Lightweight default audio track setter for MKV files",
   "author": "fckreg",
@@ -34,11 +34,13 @@
     "wait-on": "^8.0.3"
   },
   "build": {
-    "appId": "com.trackdefault.app",
-    "productName": "TrackDefault",
+    "appId": "com.simpledefaultaudio.app",
+    "productName": "SimpleDefaultAudio",
     "directories": {
-      "output": "release"
+      "output": "release",
+      "buildResources": "build"
     },
+    "icon": "build/icon.ico",
     "files": [
       "dist/**/*",
       "electron/**/*",
@@ -56,10 +58,11 @@
     "win": {
       "target": [
         "portable"
-      ]
+      ],
+      "icon": "build/icon.ico"
     },
     "portable": {
-      "artifactName": "TrackDefault.exe"
+      "artifactName": "SimpleDefaultAudio.exe"
     },
     "mac": {
       "target": [
@@ -68,10 +71,11 @@
       ],
       "category": "public.app-category.utilities",
       "identity": null,
-      "artifactName": "TrackDefault-${os}-${arch}.${ext}"
+      "icon": "build/icon.png",
+      "artifactName": "SimpleDefaultAudio-${os}-${arch}.${ext}"
     },
     "dmg": {
-      "artifactName": "TrackDefault-${os}-${arch}.${ext}"
+      "artifactName": "SimpleDefaultAudio-${os}-${arch}.${ext}"
     }
   }
 }

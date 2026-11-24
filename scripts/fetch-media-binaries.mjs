@@ -33,7 +33,8 @@ const ROOT = join(__dirname, '..')
 const BIN_ROOT = join(ROOT, 'resources', 'bin')
 
 const MKVTOOLNIX_VERSION = '90.0'
-const FFMPEG_WIN_URL = 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip'
+// Essentials build keeps ffprobe much smaller than full BtbN gpl static (~160MB+).
+const FFMPEG_WIN_URL = 'https://github.com/GyanD/codexffmpeg/releases/download/7.1.1/ffmpeg-7.1.1-essentials_build.zip'
 const FFMPEG_MAC_URL = 'https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip'
 const SEVEN_ZR_URL = 'https://www.7-zip.org/a/7zr.exe'
 
@@ -102,7 +103,7 @@ function expand7z(sevenZr, archive, destDir) {
 }
 
 async function fetchWin64(outDir) {
-  const work = join(tmpdir(), `trackdefault-bin-win-${Date.now()}`)
+  const work = join(tmpdir(), `sda-bin-win-${Date.now()}`)
   ensureDir(work)
   try {
     const ffmpegZip = join(work, 'ffmpeg.zip')
@@ -135,7 +136,7 @@ async function fetchWin64(outDir) {
 }
 
 async function fetchDarwin(arch, outDir) {
-  const work = join(tmpdir(), `trackdefault-bin-mac-${arch}-${Date.now()}`)
+  const work = join(tmpdir(), `sda-bin-mac-${arch}-${Date.now()}`)
   ensureDir(work)
   try {
     if (process.platform !== 'darwin') {
@@ -227,7 +228,7 @@ async function main() {
     targets = [host]
   }
 
-  console.log('TrackDefault — fetch media binaries')
+  console.log('SimpleDefaultAudio — fetch media binaries')
   console.log(`Root: ${BIN_ROOT}`)
   ensureDir(BIN_ROOT)
 

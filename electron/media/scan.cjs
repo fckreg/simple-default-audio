@@ -3,8 +3,9 @@ const path = require('path')
 const { exists, requireTools } = require('./tools.cjs')
 const { trackKey, buildOptions, publicOption } = require('./tracks.cjs')
 const { runProcess } = require('./process.cjs')
+const { t, normalizeLocale } = require('../i18n/messages.cjs')
 
-/** @type {null | { folder: string, recurse: boolean, entries: object[], options: object[], total: number }} */
+/** @type {null | { folder: string, entries: object[], options: object[], total: number }} */
 let scanCache = null
 
 function getScanCache() {
@@ -15,26 +16,22 @@ function clearScanCache() {
   scanCache = null
 }
 
-function listMkvFiles(folder, recurse) {
+/** Only files directly in the folder — no subfolders. */
+function listMkvFiles(folder, locale = 'en') {
+  const collator = normalizeLocale(locale) === 'ru' ? 'ru' : 'en'
+  let entries
+  try {
+    entries = fs.readdirSync(folder, { withFileTypes: true })
+  } catch {
+    return []
+  }
   const results = []
-  function walk(dir) {
-    let entries
-    try {
-      entries = fs.readdirSync(dir, { withFileTypes: true })
-    } catch {
-      return
-    }
-    for (const ent of entries) {
-      const full = path.join(dir, ent.name)
-      if (ent.isDirectory()) {
-        if (recurse) walk(full)
-      } else if (ent.isFile() && ent.name.toLowerCase().endsWith('.mkv')) {
-        results.push(full)
-      }
+  for (const ent of entries) {
+    if (ent.isFile() && ent.name.toLowerCase().endsWith('.mkv')) {
+      results.push(path.join(folder, ent.name))
     }
   }
-  walk(folder)
-  results.sort((a, b) => a.localeCompare(b, 'ru'))
+  results.sort((a, b) => a.localeCompare(b, collator))
   return results
 }
 
@@ -68,40 +65,37 @@ async function getAudioTracks(ffprobe, file) {
 
 /**
  * FolderSelection → ScanCache via ffprobe headers only.
- * @param {string} folder
- * @param {{ recurse?: boolean, onLog?: (line: string) => void, isCancelled?: () => boolean }} [options]
  */
 async function scanFolder(folder, options = {}) {
-  const recurse = Boolean(options.recurse)
+  const locale = normalizeLocale(options.locale)
   const log = typeof options.onLog === 'function' ? options.onLog : () => {}
   const isCancelled = typeof options.isCancelled === 'function' ? options.isCancelled : () => false
 
   if (!folder || !exists(folder)) {
-    throw new Error('Папка не найдена')
+    throw new Error(t(locale, 'folderMissing'))
   }
 
   const resolved = path.resolve(folder)
-  const tools = requireTools()
+  const tools = requireTools(locale)
   const { ffprobe, mkvpropedit } = tools
 
   if (!isCancelled()) scanCache = null
 
   log(`ffprobe: ${ffprobe}${tools.ffprobeBundled ? ' (bundled)' : ' (dev fallback)'}`)
   log(`mkvpropedit: ${mkvpropedit}${tools.mkvpropeditBundled ? ' (bundled)' : ' (dev fallback)'}`)
-  log(`Папка: ${resolved}`)
-  log(recurse ? 'Режим: с подпапками' : 'Режим: только эта папка')
+  log(t(locale, 'folder', resolved))
   log('')
 
-  const files = listMkvFiles(resolved, recurse)
+  const files = listMkvFiles(resolved, locale)
   if (isCancelled()) return { cancelled: true }
 
   if (files.length === 0) {
-    scanCache = { folder: resolved, recurse, entries: [], options: [], total: 0 }
-    log('MKV-файлы не найдены')
+    scanCache = { folder: resolved, entries: [], options: [], total: 0 }
+    log(t(locale, 'noMkv'))
     return { options: [], total: 0, failed: 0, withAudio: 0 }
   }
 
-  log(`MKV-файлов: ${files.length}`)
+  log(t(locale, 'mkvCount', files.length))
 
   const entries = []
   let failed = 0
@@ -115,12 +109,12 @@ async function scanFolder(folder, options = {}) {
       if (isCancelled()) return { cancelled: true }
       entries.push({ file, name, tracks })
       if (tracks.length === 0) {
-        log(`[SCAN] ${name} — нет аудиодорожек`)
+        log(`[SCAN] ${name} — ${t(locale, 'noAudioInFile')}`)
       } else {
         withAudio++
-        const brief = tracks.map((t) => {
-          const title = t.title.trim() || t.language || t.codec || 'аудио'
-          return `a${t.audioOrdinal} [${t.language || '—'}] ${title}`
+        const brief = tracks.map((tr) => {
+          const title = tr.title.trim() || tr.language || tr.codec || t(locale, 'audio')
+          return `a${tr.audioOrdinal} [${tr.language || '—'}] ${title}`
         }).join(', ')
         log(`[SCAN] ${name} — ${brief}`)
       }
@@ -129,16 +123,15 @@ async function scanFolder(folder, options = {}) {
       failed++
       const message = err.message || String(err)
       entries.push({ file, name, tracks: [], error: message })
-      log(`[FAIL] ${name} — ${message}`)
+      log(t(locale, 'fail', name, message))
     }
   }
 
   if (isCancelled()) return { cancelled: true }
 
-  const optionsList = buildOptions(entries, files.length)
+  const optionsList = buildOptions(entries, files.length, locale)
   scanCache = {
     folder: resolved,
-    recurse,
     entries,
     options: optionsList,
     total: files.length,
@@ -146,9 +139,9 @@ async function scanFolder(folder, options = {}) {
 
   log('')
   if (optionsList.length === 0) {
-    log('Аудиодорожки не найдены')
+    log(t(locale, 'noAudioOverall'))
   } else {
-    log(`Найдено разных дорожек (язык+название): ${optionsList.length}`)
+    log(t(locale, 'distinctTracks', optionsList.length))
     for (const opt of optionsList) log(`  ${opt.text}`)
   }
 

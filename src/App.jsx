@@ -1,19 +1,48 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { LOCALES, t } from './i18n/messages.js'
+
+const PREFS_KEY = 'sda.prefs'
+
+function loadPrefs() {
+  try {
+    const raw = localStorage.getItem(PREFS_KEY)
+    if (!raw) return { locale: 'en' }
+    const parsed = JSON.parse(raw)
+    return { locale: LOCALES.includes(parsed.locale) ? parsed.locale : 'en' }
+  } catch {
+    return { locale: 'en' }
+  }
+}
+
+function api() {
+  return window.simpleDefaultAudio
+}
+
+function stepClass(status) {
+  return `step step-${status}`
+}
 
 export default function App() {
+  const initial = useMemo(() => loadPrefs(), [])
+  const [locale, setLocale] = useState(initial.locale)
   const [folder, setFolder] = useState('')
-  const [recurse, setRecurse] = useState(false)
   const [tracks, setTracks] = useState([])
   const [trackId, setTrackId] = useState('')
   const [scanning, setScanning] = useState(false)
   const [running, setRunning] = useState(false)
   const [log, setLog] = useState('')
+  const [applied, setApplied] = useState(false)
   const logRef = useRef(null)
   const busy = scanning || running
 
   useEffect(() => {
-    if (!window.trackdefault?.onLog) return undefined
-    return window.trackdefault.onLog((line) => {
+    document.documentElement.lang = locale
+    localStorage.setItem(PREFS_KEY, JSON.stringify({ locale }))
+  }, [locale])
+
+  useEffect(() => {
+    if (!api()?.onLog) return undefined
+    return api().onLog((line) => {
       setLog((prev) => (prev ? `${prev}\n${line}` : line))
     })
   }, [])
@@ -23,16 +52,19 @@ export default function App() {
     if (el) el.scrollTop = el.scrollHeight
   }, [log])
 
-  async function scan(nextFolder, nextRecurse) {
+  async function scan(nextFolder) {
     if (busy) return
     setScanning(true)
     setTracks([])
     setTrackId('')
     setLog('')
+    setApplied(false)
     try {
-      const result = await window.trackdefault.scanFolder(nextFolder, nextRecurse)
+      const result = await api().scanFolder(nextFolder, locale)
       if (!result || result.cancelled || !result.ok) {
-        if (result?.error) setLog((prev) => (prev ? `${prev}\n[ERROR] ${result.error}` : `[ERROR] ${result.error}`))
+        if (result?.error) {
+          setLog((prev) => (prev ? `${prev}\n[ERROR] ${result.error}` : `[ERROR] ${result.error}`))
+        }
         return
       }
       const options = result.options || []
@@ -45,27 +77,23 @@ export default function App() {
 
   async function pickFolder() {
     if (busy) return
-    const selected = await window.trackdefault.selectFolder()
+    const selected = await api().selectFolder(locale)
     if (!selected) return
     setFolder(selected)
-    await scan(selected, recurse)
-  }
-
-  function onRecurseChange(event) {
-    if (busy) return
-    const next = event.target.checked
-    setRecurse(next)
-    if (folder) scan(folder, next)
+    await scan(selected)
   }
 
   async function run() {
     if (!folder || !trackId || busy) return
     setRunning(true)
     setLog('')
+    setApplied(false)
     try {
-      const result = await window.trackdefault.applyTrack(folder, recurse, trackId)
+      const result = await api().applyTrack(folder, trackId, locale)
       if (result && !result.ok && result.error) {
         setLog((prev) => (prev ? `${prev}\n[ERROR] ${result.error}` : `[ERROR] ${result.error}`))
+      } else {
+        setApplied(true)
       }
     } finally {
       setRunning(false)
@@ -73,79 +101,134 @@ export default function App() {
   }
 
   const selectPlaceholder = scanning
-    ? 'Сканирование…'
+    ? t(locale, 'scanning')
     : tracks.length
-      ? 'Выберите дорожку'
+      ? t(locale, 'trackPick')
       : folder
-        ? 'Дорожки не найдены'
-        : 'Сначала выберите папку'
+        ? t(locale, 'trackNone')
+        : t(locale, 'trackNeedFolder')
+
+  const primaryLabel = scanning
+    ? t(locale, 'scanning')
+    : running
+      ? t(locale, 'applying')
+      : t(locale, 'apply')
+
+  const step1 = folder ? 'done' : 'active'
+  const step2 = !folder ? 'pending' : trackId ? 'done' : 'active'
+  const step3 = applied ? 'done' : running || (folder && trackId) ? 'active' : 'pending'
+
+  const folderName = folder
+    ? folder.replace(/[/\\]+$/, '').split(/[/\\]/).pop() || folder
+    : ''
 
   return (
     <div className="app">
       <header className="header">
-        <p className="brand">TrackDefault</p>
-        <h1>Выбор аудиодорожки</h1>
-        <p>Ставит выбранную дорожку default в MKV без пересборки</p>
+        <div className="header-top">
+          <div>
+            <p className="brand">{t(locale, 'brand')}</p>
+            <p className="subtitle">{t(locale, 'subtitle')}</p>
+          </div>
+          <label className="pref">
+            <span>{t(locale, 'language')}</span>
+            <select
+              className="pref-select"
+              value={locale}
+              onChange={(e) => setLocale(e.target.value)}
+              disabled={busy}
+            >
+              <option value="en">EN</option>
+              <option value="ru">RU</option>
+            </select>
+          </label>
+        </div>
       </header>
 
-      <section className="panel">
-        <label className="label" htmlFor="folder">Папка с видео</label>
-        <div className="row">
-          <input
-            id="folder"
-            className="input"
-            value={folder}
-            readOnly
-            placeholder="Не выбрана"
-          />
-          <button type="button" className="btn secondary" onClick={pickFolder} disabled={busy}>
-            Выбрать…
-          </button>
-        </div>
+      <ol className="steps">
+        <li className={stepClass(step1)}>
+          <div className="step-rail" aria-hidden="true">
+            <span className="step-dot">{step1 === 'done' ? '✓' : '1'}</span>
+            <span className="step-line" />
+          </div>
+          <div className="step-body">
+            <div className="step-head">
+              <h2>{t(locale, 'step1')}</h2>
+              <p>{t(locale, 'step1Hint')}</p>
+            </div>
+            <div className="step-card">
+              <div className="row">
+                <input
+                  id="folder"
+                  className="input"
+                  value={folderName || folder}
+                  title={folder}
+                  readOnly
+                  placeholder={t(locale, 'folderPlaceholder')}
+                />
+                <button type="button" className="btn secondary" onClick={pickFolder} disabled={busy}>
+                  {t(locale, 'choose')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </li>
 
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={recurse}
-            onChange={onRecurseChange}
-            disabled={busy}
-          />
-          Включая подпапки
-        </label>
+        <li className={stepClass(step2)}>
+          <div className="step-rail" aria-hidden="true">
+            <span className="step-dot">{step2 === 'done' ? '✓' : '2'}</span>
+            <span className="step-line" />
+          </div>
+          <div className="step-body">
+            <div className="step-head">
+              <h2>{t(locale, 'step2')}</h2>
+              <p>{t(locale, 'step2Hint')}</p>
+            </div>
+            <div className="step-card">
+              <select
+                id="track"
+                className="select"
+                value={trackId}
+                onChange={(event) => {
+                  setTrackId(event.target.value)
+                  setApplied(false)
+                }}
+                disabled={busy || tracks.length === 0}
+              >
+                <option value="">{selectPlaceholder}</option>
+                {tracks.map((track) => (
+                  <option key={track.id} value={track.id}>
+                    {track.text}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="btn primary"
+                onClick={run}
+                disabled={!folder || !trackId || busy}
+              >
+                {primaryLabel}
+              </button>
+            </div>
+          </div>
+        </li>
 
-        <label className="label" htmlFor="track">Аудиодорожка</label>
-        <select
-          id="track"
-          className="select"
-          value={trackId}
-          onChange={(event) => setTrackId(event.target.value)}
-          disabled={busy || tracks.length === 0}
-        >
-          <option value="">{selectPlaceholder}</option>
-          {tracks.map((track) => (
-            <option key={track.id} value={track.id}>
-              {track.text}
-            </option>
-          ))}
-        </select>
-        <p className="hint">
-          Список собран по паре язык + название во всех MKV. Если в файле такой дорожки нет — в журнале будет предупреждение, остальные файлы обновятся.
-        </p>
-
-        <button
-          type="button"
-          className="btn primary"
-          onClick={run}
-          disabled={!folder || !trackId || busy}
-        >
-          {scanning ? 'Сканирование…' : running ? 'Применение…' : 'Сделать дорожкой по умолчанию'}
-        </button>
-      </section>
-
-      <section className="log-wrap">
-        <div className="label">Журнал</div>
-        <pre ref={logRef} className="log">{log || 'Выберите папку — дорожки прочитаются из заголовков, без пересборки.'}</pre>
-      </section>
+        <li className={stepClass(step3)}>
+          <div className="step-rail" aria-hidden="true">
+            <span className="step-dot">{step3 === 'done' ? '✓' : '3'}</span>
+          </div>
+          <div className="step-body step-body-fill">
+            <div className="step-head">
+              <h2>{t(locale, 'step3')}</h2>
+              <p>{t(locale, 'step3Hint')}</p>
+            </div>
+            <div className="step-card step-card-log">
+              <pre ref={logRef} className="log">{log || t(locale, 'journalEmpty')}</pre>
+            </div>
+          </div>
+        </li>
+      </ol>
     </div>
   )
 }

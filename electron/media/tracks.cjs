@@ -3,6 +3,8 @@
  * See data-model.md TrackIdentity / AudioTrackOption.
  */
 
+const { t, normalizeLocale } = require('../i18n/messages.cjs')
+
 function norm(value) {
   return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ')
 }
@@ -25,10 +27,11 @@ function trackKey(track) {
   return `${languageNorm(track)}\u001f${titleNorm(track)}`
 }
 
-function formatLabel(track) {
+function formatLabel(track, locale = 'en') {
+  const loc = normalizeLocale(locale)
   const title = track.title?.trim() || ''
   const language = track.language?.trim() || ''
-  const parts = [title || 'без названия']
+  const parts = [title || t(loc, 'untitled')]
   if (language) parts.push(language)
   if (track.codec) parts.push(track.codec)
   if (track.channels) parts.push(`${track.channels} ch`)
@@ -38,7 +41,8 @@ function formatLabel(track) {
 /**
  * Build AudioTrackOption rows from FileEntry[] keyed by TrackIdentity.key.
  */
-function buildOptions(entries, total) {
+function buildOptions(entries, total, locale = 'en') {
+  const loc = normalizeLocale(locale)
   const map = new Map()
   for (const entry of entries) {
     const seen = new Set()
@@ -67,9 +71,12 @@ function buildOptions(entries, total) {
     }
   }
 
+  const collator = loc === 'ru' ? 'ru' : 'en'
+  const ofWord = loc === 'ru' ? 'из' : 'of'
+
   const options = [...map.values()]
     .map((bucket) => {
-      const languages = [...bucket.languages].sort((a, b) => a.localeCompare(b, 'ru'))
+      const languages = [...bucket.languages].sort((a, b) => a.localeCompare(b, collator))
       const language = languages.length <= 1
         ? (bucket.language || languages[0] || '')
         : languages.join('/')
@@ -81,11 +88,11 @@ function buildOptions(entries, total) {
         channels: bucket.channels,
         fileCount: bucket.fileCount,
       }
-      view.label = formatLabel(view)
-      view.text = `${view.label} — ${view.fileCount} из ${total}`
+      view.label = formatLabel(view, loc)
+      view.text = `${view.label} — ${view.fileCount} ${ofWord} ${total}`
       return view
     })
-    .sort((a, b) => b.fileCount - a.fileCount || a.label.localeCompare(b.label, 'ru'))
+    .sort((a, b) => b.fileCount - a.fileCount || a.label.localeCompare(b.label, collator))
 
   options.forEach((opt, index) => {
     opt.id = String(index)

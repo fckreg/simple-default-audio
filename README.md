@@ -1,4 +1,4 @@
-# TrackDefault
+# SimpleDefaultAudio
 
 **Lightweight desktop utility** that sets the **default audio track** on MKV files — metadata only, no remux, no re-encode.
 
@@ -8,29 +8,43 @@ Pick a folder → choose a track by **language + title** → apply. Matching fil
 |---|---|
 | Platforms | Windows 10/11 (x64 portable), macOS 12+ (zip/dmg) |
 | License | [MIT](./LICENSE) |
-| Downloads | **[GitHub Releases](https://github.com/fckreg/simple-default-audio/releases)** only |
+| Downloads | **[GitHub Releases](https://github.com/fckreg/simple-default-audio/releases)** only (when published) |
 
 ## Download
 
-1. Open **[Releases](https://github.com/fckreg/simple-default-audio/releases)**
+1. Open **[Releases](https://github.com/fckreg/simple-default-audio/releases)** (after a public release is published)
 2. Get the asset for your OS:
-   - Windows: `TrackDefault.exe` (portable)
-   - macOS: `TrackDefault-mac-*.zip` or `.dmg`
+   - Windows: `SimpleDefaultAudio.exe` (portable)
+   - macOS: `SimpleDefaultAudio-mac-*.zip` or `.dmg`
 
-Binaries are **not** committed to this repository. Always use Releases.
+Binaries are **not** committed to this repository. Always use Releases when available.
+
+## Why is the Windows build large?
+
+Typical portable size is driven by:
+
+1. **Electron / Chromium** runtime (~80–110 MB compressed)
+2. **Bundled `ffprobe`** (media header probe; essentials build preferred)
+3. **Bundled `mkvpropedit`** (~10–12 MB)
+
+This is normal for a download-and-run Electron app that ships helpers so users need no system installs.
+
+## Why does Windows warn on first launch?
+
+The portable `.exe` is **not code-signed** with an Authenticode certificate. Windows SmartScreen / Defender SmartScreen therefore shows “Windows protected your PC” for unknown publishers. Click **More info → Run anyway** (or unblock in Properties). Signing requires a paid certificate and is not part of v1.
 
 ## macOS first open (unsigned builds)
 
 v1 macOS builds are **unsigned / ad-hoc** (no Apple Developer notarization).
 
 1. Download and unpack the zip (or open the DMG).
-2. Move **TrackDefault** to Applications (recommended).
-3. First launch: right-click the app → **Open** → confirm **Open** in the Gatekeeper dialog.  
+2. Move **SimpleDefaultAudio** to Applications (recommended).
+3. First launch: right-click the app → **Open** → confirm **Open**.  
    Or: System Settings → Privacy & Security → allow the blocked app, then open again.
-4. If macOS still blocks the app: remove the quarantine flag in Terminal:
+4. If still blocked:
 
 ```bash
-xattr -dr com.apple.quarantine /Applications/TrackDefault.app
+xattr -dr com.apple.quarantine /Applications/SimpleDefaultAudio.app
 ```
 
 ## What it does
@@ -38,8 +52,9 @@ xattr -dr com.apple.quarantine /Applications/TrackDefault.app
 - Scans `.mkv` files (optional subfolders)
 - Lists distinct audio options by **normalized language + title**
 - Sets `flag-default` via bundled `mkvpropedit` (headers only)
+- UI languages: **EN (default)** and **RU**
 - Streams a readable journal; continues after per-file skips/errors
-- Ships with bundled `ffprobe` + `mkvpropedit` so you do not need system installs
+- Ships with bundled `ffprobe` + `mkvpropedit`
 
 ## Develop
 
@@ -49,29 +64,29 @@ npm run fetch-binaries   # populates resources/bin/<platform-arch>/
 npm run dev
 ```
 
-### Package
+### Package (local)
 
 ```bash
-npm run pack:win   # Windows portable (run on Windows)
-npm run pack:mac   # macOS zip/dmg (run on macOS)
+npm run pack:win   # Windows portable
+npm run pack:mac   # macOS zip/dmg (on macOS)
 ```
 
-Output goes to `release/` (gitignored). Attach artifacts to a GitHub Release — do not commit them.
+Output goes to `release/` (gitignored). Do not commit binaries.
 
 ### Helper binaries
 
-`npm run fetch-binaries` downloads verified helpers into `resources/bin/`:
+`npm run fetch-binaries` downloads helpers into `resources/bin/`:
 
 | Target | Notes |
 |--------|--------|
-| `win32-x64` | FFmpeg GPL build + MKVToolNix portable |
+| `win32-x64` | FFmpeg **essentials** + MKVToolNix portable |
 | `darwin-arm64` / `darwin-x64` | ffprobe (evermeet) + local mkvpropedit seed |
 
-See [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) for license attribution.
+See [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
 
 ## Contributing
 
-Issues and PRs welcome. Keep the product focused: folder → track → default audio on MKV. Prefer metadata-only changes and the modular `electron/media/*` layout.
+Issues and PRs welcome. Keep the product focused: folder → track → default audio on MKV.
 
 ## Changelog
 

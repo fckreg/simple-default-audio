@@ -3,6 +3,7 @@ const { execFileSync } = require('child_process')
 const { exists, requireTools } = require('./tools.cjs')
 const { getScanCache } = require('./scan.cjs')
 const { runProcess } = require('./process.cjs')
+const { t, normalizeLocale } = require('../i18n/messages.cjs')
 
 function isReadOnlyWin(file) {
   try {
@@ -39,13 +40,9 @@ function trackDisplayName(option) {
 
 /**
  * Metadata-only default via mkvpropedit. Skips files missing TrackIdentity.key.
- * @param {string} folder
- * @param {string} trackId
- * @param {{ recurse?: boolean, onLog?: (line: string) => void }} [options]
- * @returns {Promise<{ ok: number, warn: number, fail: number, total: number }>}
  */
 async function applyTrack(folder, trackId, options = {}) {
-  const recurse = Boolean(options.recurse)
+  const locale = normalizeLocale(options.locale)
   const log = typeof options.onLog === 'function' ? options.onLog : () => {}
   const warnLine = (line) => {
     console.warn(line)
@@ -53,30 +50,30 @@ async function applyTrack(folder, trackId, options = {}) {
   }
 
   if (!folder || !exists(folder)) {
-    throw new Error('Папка не найдена')
+    throw new Error(t(locale, 'folderMissing'))
   }
   if (!trackId) {
-    throw new Error('Дорожка не выбрана')
+    throw new Error(t(locale, 'trackMissing'))
   }
 
   const resolved = path.resolve(folder)
   const scanCache = getScanCache()
-  if (!scanCache || scanCache.folder !== resolved || scanCache.recurse !== recurse) {
-    throw new Error('Результаты сканирования устарели. Выберите папку ещё раз.')
+  if (!scanCache || scanCache.folder !== resolved) {
+    throw new Error(t(locale, 'scanStale'))
   }
 
   const option = scanCache.options.find((item) => item.id === trackId)
   if (!option) {
-    throw new Error('Выбранная дорожка не найдена. Просканируйте папку ещё раз.')
+    throw new Error(t(locale, 'trackNotFound'))
   }
 
-  const tools = requireTools()
+  const tools = requireTools(locale)
   const { mkvpropedit } = tools
   const trackName = trackDisplayName(option)
 
   log(`mkvpropedit: ${mkvpropedit}${tools.mkvpropeditBundled ? ' (bundled)' : ' (dev fallback)'}`)
-  log(`Папка: ${resolved}`)
-  log(`Дорожка: ${option.label}`)
+  log(t(locale, 'folder', resolved))
+  log(t(locale, 'trackLine', option.label))
   log('')
 
   let ok = 0
@@ -86,23 +83,23 @@ async function applyTrack(folder, trackId, options = {}) {
   for (const entry of scanCache.entries) {
     const { file, name, tracks, error } = entry
     if (error) {
-      const line = `[FAIL] ${name} — ${error}`
+      const line = t(locale, 'fail', name, error)
       console.error(line)
       log(line)
       fail++
       continue
     }
 
-    const matches = tracks.filter((t) => t.key === option.key)
+    const matches = tracks.filter((tr) => tr.key === option.key)
     if (matches.length === 0) {
-      warnLine(`[WARN] ${name} — дорожка «${trackName}» не найдена (нет пары язык+название)`)
+      warnLine(t(locale, 'warnMissing', name, trackName))
       if (tracks.length === 0) {
-        log('         аудиодорожек нет')
+        log(t(locale, 'noAudioListed'))
       }
-      for (const t of tracks) {
-        const mark = t.isDefault ? '*' : ' '
-        const title = t.title.trim() || 'без названия'
-        log(`         ${mark} a${t.audioOrdinal}: [${t.language || '—'}] ${title}`)
+      for (const tr of tracks) {
+        const mark = tr.isDefault ? '*' : ' '
+        const title = tr.title.trim() || t(locale, 'untitled')
+        log(`         ${mark} a${tr.audioOrdinal}: [${tr.language || '—'}] ${title}`)
       }
       warn++
       continue
@@ -110,13 +107,13 @@ async function applyTrack(folder, trackId, options = {}) {
 
     const target = matches[0]
     if (matches.length > 1) {
-      warnLine(`[WARN] ${name} — несколько совпадений «${trackName}», берём a${target.audioOrdinal}`)
+      warnLine(t(locale, 'warnMulti', name, trackName, target.audioOrdinal))
     }
 
     const quoted = target.title.trim() || trackName
-    const defaults = tracks.filter((t) => t.isDefault)
+    const defaults = tracks.filter((tr) => tr.isDefault)
     if (target.isDefault && defaults.length === 1) {
-      log(`[OK]   ${name} — уже default: a${target.audioOrdinal} «${quoted}»`)
+      log(t(locale, 'alreadyDefault', name, target.audioOrdinal, quoted))
       ok++
       continue
     }
@@ -126,12 +123,12 @@ async function applyTrack(folder, trackId, options = {}) {
         mkvpropedit,
         file,
         target.audioOrdinal,
-        tracks.map((t) => t.audioOrdinal),
+        tracks.map((tr) => tr.audioOrdinal),
       )
-      log(`[DONE] ${name} — default → a${target.audioOrdinal} «${quoted}»`)
+      log(t(locale, 'done', name, target.audioOrdinal, quoted))
       ok++
     } catch (err) {
-      const line = `[FAIL] ${name} — ${err.message || err}`
+      const line = t(locale, 'fail', name, err.message || err)
       console.error(line)
       log(line)
       fail++
@@ -139,7 +136,7 @@ async function applyTrack(folder, trackId, options = {}) {
   }
 
   log('')
-  log(`Итого: ok=${ok}  warn=${warn}  fail=${fail}  всего=${scanCache.entries.length}`)
+  log(t(locale, 'summary', ok, warn, fail, scanCache.entries.length))
   return { ok, warn, fail, total: scanCache.entries.length }
 }
 

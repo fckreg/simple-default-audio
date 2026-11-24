@@ -1,22 +1,22 @@
-# Contract: `window.trackdefault` Preload API
+# Contract: `window.simpleDefaultAudio` Preload API
 
 Surface between sandboxed renderer and Electron main. All methods are async except `onLog` subscription.
 
 ## Global
 
 ```ts
-window.trackdefault: TrackDefaultApi
+window.simpleDefaultAudio: SimpleDefaultAudioApi
 ```
 
 Must be the only media/filesystem bridge. No Node APIs in renderer.
 
 ## Methods
 
-### `selectFolder(): Promise<string | null>`
+### `selectFolder(locale?: 'en' | 'ru'): Promise<string | null>`
 
 Opens native directory dialog. Returns absolute path or `null` if cancelled.
 
-### `scanFolder(folder: string, recurse: boolean): Promise<ScanResult>`
+### `scanFolder(folder: string, recurse: boolean, locale?: 'en' | 'ru'): Promise<ScanResult>`
 
 Discovers `.mkv` files, probes audio headers, builds distinct options by **language+title** identity.
 
@@ -30,7 +30,7 @@ type ScanResult =
 
 Emits `process-log` lines during work.
 
-### `applyTrack(folder: string, recurse: boolean, trackId: string): Promise<ApplyResult>`
+### `applyTrack(folder: string, recurse: boolean, trackId: string, locale?: 'en' | 'ru'): Promise<ApplyResult>`
 
 Sets default audio for each eligible file matching the option’s language+title key via metadata edit only.
 

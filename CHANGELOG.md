@@ -1,13 +1,20 @@
 # Changelog
 
-All notable changes to TrackDefault are documented in this file.
+All notable changes to SimpleDefaultAudio are documented in this file.
+
+## [1.0.1] — 2026-11-24
+
+### Changed
+
+- Product renamed to **SimpleDefaultAudio** across UI, packaging, and IPC.
+- Three-step UI: folder → track → result; EN (default) / RU language switch.
+- Scan only the selected folder (no subfolders).
+- Smaller Windows helpers (FFmpeg essentials); app icon added.
 
 ## [1.0.0] — 2026-11-24
 
 ### Added
 
-- First public release of **TrackDefault**: set the default MKV audio track by language + title without remuxing.
-- Windows portable build (`TrackDefault.exe`) with bundled `ffprobe` and `mkvpropedit`.
-- macOS zip/dmg packaging (unsigned / ad-hoc) with Gatekeeper first-open steps documented in the README.
-- Optional subfolder scan, live journal, and busy-lock against overlapping jobs.
-- MIT license and third-party notices for bundled helpers.
+- First release: set the default MKV audio track by language + title without remuxing.
+- Windows portable build with bundled `ffprobe` and `mkvpropedit`.
+- macOS packaging path (unsigned / ad-hoc) documented in the README.

@@ -1,5 +1,5 @@
 ﻿/**
- * Fetch Windows helpers, then build portable TrackDefault.exe
+ * Fetch Windows helpers, then build portable SimpleDefaultAudio.exe
  */
 import { spawnSync } from 'child_process'
 import { dirname, join } from 'path'

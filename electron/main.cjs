@@ -2,9 +2,11 @@
 const fs = require('fs')
 const path = require('path')
 const { scanFolder, applyTrack } = require('./media/index.cjs')
+const { t, normalizeLocale } = require('./i18n/messages.cjs')
 
 const distIndex = path.join(__dirname, '..', 'dist', 'index.html')
 const useViteDev = process.env.ELECTRON_DEV === '1' && !app.isPackaged
+const iconPath = path.join(__dirname, '..', 'build', 'icon.ico')
 
 /** BatchJob busy lock: idle → scanning|applying → idle */
 let jobState = 'idle'
@@ -12,12 +14,13 @@ let scanSeq = 0
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 760,
-    height: 680,
-    minWidth: 600,
-    minHeight: 520,
-    title: 'TrackDefault',
-    backgroundColor: '#1a1f24',
+    width: 820,
+    height: 720,
+    minWidth: 640,
+    minHeight: 560,
+    title: 'SimpleDefaultAudio',
+    backgroundColor: '#12171c',
+    icon: fs.existsSync(iconPath) ? iconPath : undefined,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -33,11 +36,14 @@ function createWindow() {
   } else if (fs.existsSync(distIndex)) {
     win.loadFile(distIndex)
   } else {
-    throw new Error(`Не найден UI: ${distIndex}`)
+    throw new Error(`UI not found: ${distIndex}`)
   }
 }
 
 app.whenReady().then(() => {
+  if (process.platform === 'win32' && fs.existsSync(iconPath)) {
+    app.setAppUserModelId('com.simpledefaultaudio.app')
+  }
   createWindow()
 
   app.on('activate', () => {
@@ -55,18 +61,20 @@ function sendProcessLog(event, line) {
   }
 }
 
-ipcMain.handle('select-folder', async () => {
+ipcMain.handle('select-folder', async (_event, payload = {}) => {
+  const locale = normalizeLocale(payload?.locale)
   const result = await dialog.showOpenDialog({
-    title: 'Выберите папку с видео',
+    title: t(locale, 'selectFolderTitle'),
     properties: ['openDirectory'],
   })
   if (result.canceled || !result.filePaths[0]) return null
   return result.filePaths[0]
 })
 
-ipcMain.handle('scan-folder', async (event, { folder, recurse }) => {
+ipcMain.handle('scan-folder', async (event, { folder, locale }) => {
+  const loc = normalizeLocale(locale)
   if (jobState !== 'idle') {
-    return { ok: false, error: 'Уже выполняется другая операция. Дождитесь завершения.' }
+    return { ok: false, error: t(loc, 'busy') }
   }
 
   jobState = 'scanning'
@@ -78,7 +86,7 @@ ipcMain.handle('scan-folder', async (event, { folder, recurse }) => {
 
   try {
     const summary = await scanFolder(folder, {
-      recurse: Boolean(recurse),
+      locale: loc,
       onLog: sendLog,
       isCancelled: () => seq !== scanSeq,
     })
@@ -93,9 +101,10 @@ ipcMain.handle('scan-folder', async (event, { folder, recurse }) => {
   }
 })
 
-ipcMain.handle('apply-track', async (event, { folder, recurse, trackId }) => {
+ipcMain.handle('apply-track', async (event, { folder, trackId, locale }) => {
+  const loc = normalizeLocale(locale)
   if (jobState !== 'idle') {
-    return { ok: false, error: 'Уже выполняется другая операция. Дождитесь завершения.' }
+    return { ok: false, error: t(loc, 'busy') }
   }
 
   jobState = 'applying'
@@ -103,7 +112,7 @@ ipcMain.handle('apply-track', async (event, { folder, recurse, trackId }) => {
 
   try {
     const summary = await applyTrack(folder, trackId, {
-      recurse: Boolean(recurse),
+      locale: loc,
       onLog: sendLog,
     })
     return { ok: true, summary }

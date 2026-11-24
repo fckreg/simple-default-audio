@@ -102,18 +102,15 @@ function resolveTools() {
   }
 }
 
-function requireTools() {
+function requireTools(locale = 'en') {
+  const { t } = require('../i18n/messages.cjs')
   const tools = resolveTools()
   const missing = []
   if (!tools.ffprobe) missing.push('ffprobe')
   if (!tools.mkvpropedit) missing.push('mkvpropedit')
   if (missing.length) {
     const dir = path.join('resources', 'bin', tools.platformArch)
-    throw new Error(
-      `Не найдены вспомогательные программы: ${missing.join(', ')}. `
-      + `Ожидаются в ${dir}/ (запустите npm run fetch-binaries) `
-      + `или в поставке приложения. PATH используется только как запасной вариант для разработки.`,
-    )
+    throw new Error(t(locale, 'toolsMissing', missing.join(', '), dir))
   }
   return tools
 }
