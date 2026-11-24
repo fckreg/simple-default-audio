@@ -24,4 +24,4 @@ process.env.CSC_IDENTITY_AUTO_DISCOVERY = 'false'
 
 run('node', ['scripts/fetch-media-binaries.mjs', target])
 run('npm', ['run', 'build'])
-run('npx', ['electron-builder', '--mac', 'zip', 'dmg'])
+run('npx', ['electron-builder', '--mac', 'zip', 'dmg', '--publish', 'never'])

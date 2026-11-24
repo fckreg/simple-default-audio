@@ -14,4 +14,4 @@ function run(cmd, args) {
 
 run('node', ['scripts/fetch-media-binaries.mjs', 'win32-x64'])
 run('npm', ['run', 'build'])
-run('npx', ['electron-builder', '--win', 'portable'])
+run('npx', ['electron-builder', '--win', 'portable', '--publish', 'never'])
