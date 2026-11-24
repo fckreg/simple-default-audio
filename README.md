@@ -1,5 +1,7 @@
 # SimpleDefaultAudio
 
+**English** | [Русский](./README.ru.md)
+
 **Lightweight desktop utility** that sets the **default audio track** on MKV files — metadata only, no remux, no re-encode.
 
 Pick a folder → choose a track by **language + title** → apply. Matching files update in place; files without that identity are skipped with a journal warning.
