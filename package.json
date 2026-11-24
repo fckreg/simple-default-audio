@@ -1,0 +1,77 @@
+{
+  "name": "trackdefault",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lightweight default audio track setter for MKV files",
+  "author": "fckreg",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fckreg/simple-default-audio.git"
+  },
+  "homepage": "https://github.com/fckreg/simple-default-audio",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"wait-on http://127.0.0.1:5173 && node scripts/dev-electron.cjs\"",
+    "build": "vite build",
+    "start": "npm run build && electron .",
+    "fetch-binaries": "node scripts/fetch-media-binaries.mjs",
+    "pack": "npm run pack:win",
+    "pack:win": "node scripts/pack-win.mjs",
+    "pack:mac": "node scripts/pack-mac.mjs"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.5.2",
+    "concurrently": "^9.1.2",
+    "electron": "^36.9.5",
+    "electron-builder": "^26.15.3",
+    "vite": "^6.3.5",
+    "wait-on": "^8.0.3"
+  },
+  "build": {
+    "appId": "com.trackdefault.app",
+    "productName": "TrackDefault",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/bin/${platform}-${arch}/",
+        "to": "bin/${platform}-${arch}/",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ]
+    },
+    "portable": {
+      "artifactName": "TrackDefault.exe"
+    },
+    "mac": {
+      "target": [
+        "zip",
+        "dmg"
+      ],
+      "category": "public.app-category.utilities",
+      "identity": null,
+      "artifactName": "TrackDefault-${os}-${arch}.${ext}"
+    },
+    "dmg": {
+      "artifactName": "TrackDefault-${os}-${arch}.${ext}"
+    }
+  }
+}
