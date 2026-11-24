@@ -10,16 +10,8 @@ on:
 
 jobs:
   mac:
-    name: macOS ${{ matrix.arch }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-14
-            arch: arm64
-          - os: macos-13
-            arch: x64
+    name: macOS build
+    runs-on: macos-latest
     permissions:
       contents: write
     steps:
