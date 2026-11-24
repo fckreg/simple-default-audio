@@ -6,18 +6,28 @@ Pick a folder → choose a track by **language + title** → apply. Matching fil
 
 | | |
 |---|---|
-| Platforms | Windows 10/11 (x64 portable), macOS 12+ (zip/dmg) |
+| Platforms | Windows 10/11 (x64 portable), macOS 12+ (zip/dmg, Apple Silicon) |
 | License | [MIT](./LICENSE) |
-| Downloads | **[GitHub Releases](https://github.com/fckreg/simple-default-audio/releases)** only (when published) |
+| Downloads | **[GitHub Releases](https://github.com/fckreg/simple-default-audio/releases)** only |
+
+## Screenshots
+
+| Empty start | Folder scanned |
+|---|---|
+| ![Empty start](docs/1.png) | ![Folder scanned](docs/2.png) |
+
+| Pick a track | Apply result |
+|---|---|
+| ![Pick a track](docs/3.png) | ![Apply result](docs/4.png) |
 
 ## Download
 
-1. Open **[Releases](https://github.com/fckreg/simple-default-audio/releases)** (after a public release is published)
+1. Open **[Releases](https://github.com/fckreg/simple-default-audio/releases)**
 2. Get the asset for your OS:
    - Windows: `SimpleDefaultAudio.exe` (portable)
-   - macOS: `SimpleDefaultAudio-mac-*.zip` or `.dmg`
+   - macOS (Apple Silicon): `SimpleDefaultAudio-mac-arm64.zip` or `.dmg`
 
-Binaries are **not** committed to this repository. Always use Releases when available.
+Binaries are **not** committed to this repository. Always use Releases.
 
 ## Why is the Windows build large?
 
@@ -49,7 +59,7 @@ xattr -dr com.apple.quarantine /Applications/SimpleDefaultAudio.app
 
 ## What it does
 
-- Scans `.mkv` files (optional subfolders)
+- Scans `.mkv` files in the selected folder (no subfolders)
 - Lists distinct audio options by **normalized language + title**
 - Sets `flag-default` via bundled `mkvpropedit` (headers only)
 - UI languages: **EN (default)** and **RU**
@@ -80,7 +90,7 @@ Output goes to `release/` (gitignored). Do not commit binaries.
 | Target | Notes |
 |--------|--------|
 | `win32-x64` | FFmpeg **essentials** + MKVToolNix portable |
-| `darwin-arm64` / `darwin-x64` | ffprobe (evermeet) + local mkvpropedit seed |
+| `darwin-arm64` / `darwin-x64` | Copy from Homebrew `ffmpeg` + `mkvtoolnix` |
 
 See [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
 
